@@ -18,7 +18,7 @@ sparcbot_driver:
     control_rate_hz: 100.0      # encoder read + /wheel_states publish rate
     cmd_timeout_s: 0.1          # coast if no /wheel_cmd for this long (<= 0 disables)
 
-    wheel_radius_m: 0.050
+    wheel_radius_m: 0.042 
     counts_per_rev: 500.0       # encoder counts per gearbox output revolution
     velocity_cutoff_hz: 8.0     # first-order low-pass on wheel velocity (<= 0 disables)
 
@@ -33,7 +33,7 @@ sparcbot_driver:
       pwm_chip: 0
       pwm_channel: 0
       pwm_frequency_hz: 20000
-      motor_sign: 1
+      motor_sign: -1
       encoder_sign: -1
 
     right_motor:
@@ -45,7 +45,7 @@ sparcbot_driver:
       pwm_chip: 0
       pwm_channel: 1
       pwm_frequency_hz: 20000
-      motor_sign: 1
+      motor_sign: -1
       encoder_sign: 1
 
 # -----------------------------------------------------------------------------
@@ -62,17 +62,17 @@ wheel_controller:
   ros__parameters:
     # CSV file for WheelController.log() (call it inside compute()); '' disables logging.
     # Use an absolute path, e.g. /home/sparcbot/logs/ff_sweep.csv
-    log_file: ''
+    log_file: '/home/todd/sparcbot/logs/ff_sweep.csv'
 
     left:
-      kp: 0.0
-      ki: 0.0
+      kp: 3.0
+      ki: 5.0
       kd: 0.0
       feedforward:
-        forward_static: 0.0
-        forward_velocity_gain: 0.0
-        reverse_static: 0.0
-        reverse_velocity_gain: 0.0
+        forward_static: 0.115
+        forward_velocity_gain: 0.9
+        reverse_static: 0.135
+        reverse_velocity_gain: 0.9
         forward_breakaway: 0.0
         reverse_breakaway: 0.0
         stopped_velocity_threshold: 0.025
@@ -80,14 +80,14 @@ wheel_controller:
         zero_velocity_threshold: 0.0005
 
     right:
-      kp: 0.0
-      ki: 0.0
+      kp: 3.0
+      ki: 5.0
       kd: 0.0
       feedforward:
-        forward_static: 0.0
-        forward_velocity_gain: 0.0
-        reverse_static: 0.0
-        reverse_velocity_gain: 0.0
+        forward_static: 0.138
+        forward_velocity_gain: 0.9
+        reverse_static: 0.137
+        reverse_velocity_gain: 0.9
         forward_breakaway: 0.0
         reverse_breakaway: 0.0
         stopped_velocity_threshold: 0.025
