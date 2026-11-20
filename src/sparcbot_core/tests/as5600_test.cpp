@@ -1,13 +1,5 @@
 // AS5600 bench test: prints the raw sensor angle, the calibrated angle and the magnet status.
-//
-//   as5600_test [zero_offset_deg [direction_sign [i2c_device]]]
-//
-// Finding the zero: put the trailer straight behind the robot, run with no arguments and
-// read sensor_deg. That is the zero offset. Run again with it as the first argument and
-// check that angle_deg reads about 0 there, and that it increases when the trailer swings
-// counter-clockwise (seen from above). If it increases the other way, pass direction_sign -1.
-//
-// Do not run this while another program is using the same I2C sensor.
+
 
 #include <chrono>
 #include <csignal>
