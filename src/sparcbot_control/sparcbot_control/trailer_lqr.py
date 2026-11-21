@@ -47,7 +47,7 @@ def linearize(v, omega):
     #the dynamics for trailer angle: phi_dot = -v/L * sin(phi) - (1 + a/L * cos(phi)) * omega
     #you will be returning phi, A, B
     #TODO
-    pass
+    raise NotImplementedError('linearize: fill in the TODO')
 
 def scalar_lqr(A, B, Q, R):
     # using the ricatti equation to calcualate P the root using this quadratic equation where P > 0
@@ -55,7 +55,7 @@ def scalar_lqr(A, B, Q, R):
     # and the gain K is calculated using K = B * P/R
     # you will be returning K
     #TODO
-    pass
+    raise NotImplementedError('scalar_lqr: fill in the TODO')
     
 def build_row(v, omega, Q, R, max_angle_deg=35.0):
     # one row in the table corresponds to a dictionary of the form 
@@ -64,14 +64,14 @@ def build_row(v, omega, Q, R, max_angle_deg=35.0):
     # to generate a table for gain scheduling
     # you will be returning a dictiopna of this form : {'v': v, 'omega': omega, 'phi_star': phi, 'A': A, 'B': B, 'K': K}
     #TODO
-    pass
+    raise NotImplementedError('build_row: fill in the TODO')
 
 def build_table(Q, R, speed_levels, turn_levels, max_angle_deg=35.0):
     # Collect all those rows built in build row 
     # into a list to make a gains lookup table
     rows = []
     #TODO
-    pass
+    raise NotImplementedError('build_table: fill in the TODO')
 
 
 def find_row(rows, v_cmd, omega_cmd, tol=1e-3):
@@ -90,14 +90,44 @@ def scheduled_omega(row, omega_cmd, phi_measured, max_omega):
 def run_tests():
     # Self-test of the helper functions (no robot, no ROS needed to run it):
     #   ros2 run sparcbot_control trailer_lqr test
+    # A helper you have not written yet shows as TODO, not FAIL. The helpers are tested in the
+    # order you write them: linearize, scalar_lqr, build_row, build_table.
     # The reference values are for L=0.081, a=0.14, Q=R=1 and a 35 deg limit, whatever the
     # settings at the top of this file say, so they only change if the maths changes.
     global L, a
     settings_L, settings_a = L, a       # the file's settings, put back before the last section
     L, a = 0.081, 0.14                  # the reference values below are for these
     failures = []
+    waiting = []                        # helpers that still raise NotImplementedError
+    NOT_DONE = object()
+    skipped = {'checks': 0, 'missing': set()}     # checks of the current section waiting on a TODO
+
+    def attempt(fn, *args):
+        # fn(*args), or NOT_DONE if it (or a helper it calls) is not written yet
+        try:
+            return fn(*args)
+        except NotImplementedError as e:
+            name = str(e).split(':')[0] or fn.__name__
+            if name not in waiting:
+                waiting.append(name)
+            skipped['missing'].add(name)
+            return NOT_DONE
+
+    def heading(title):
+        end_section()
+        print(title)
+
+    def end_section():
+        if skipped['checks']:
+            names = ', '.join(sorted(skipped['missing']))
+            print(f"TODO  {skipped['checks']} checks skipped until {names} is written")
+        skipped['checks'] = 0
+        skipped['missing'] = set()
 
     def check(name, got, expected, tol=5e-4):
+        if got is NOT_DONE:
+            skipped['checks'] += 1
+            return
         ok = got is not None and abs(got - expected) <= tol
         print(f"{'PASS' if ok else 'FAIL'}  {name}: got {got if got is None else round(got, 4)}, "
             f"expected {expected}")
@@ -105,11 +135,33 @@ def run_tests():
             failures.append(name)
 
     def check_true(name, condition):
+        if condition is NOT_DONE:
+            skipped['checks'] += 1
+            return
         print(f"{'PASS' if condition else 'FAIL'}  {name}")
         if not condition:
             failures.append(name)
 
-    print('steady_trailer_angle [deg]')
+    def field(result, key, convert=None):
+        # one entry of a result (a tuple or a row), passing NOT_DONE and None through
+        if result is NOT_DONE or result is None:
+            return result
+        return result[key] if convert is None else convert(result[key])
+
+    def todo_if(result, condition):
+        return NOT_DONE if result is NOT_DONE else condition
+
+    reference_points = [
+        # v, omega, phi* [deg], A, B
+        (-0.20, 0.0, 0.0, 2.4691, -2.7284),
+        (-0.20, 0.3, 18.69, 2.5051, -2.6373),
+        (-0.15, 0.2, 16.67, 1.8732, -2.6558),
+        (-0.10, -0.1, -12.57, 1.2426, -2.6870),
+        (0.10, 0.0, 0.0, -1.2346, -2.7284),
+        (0.20, -0.3, 18.69, -2.5051, -2.6373)]
+    reference_gains = [-2.2537, -2.3291, -1.9290, -1.5642, -0.6451, -0.4293]
+
+    heading('steady_trailer_angle [deg]')
     for v, w, expected in [(0.2, 0.0, 0.0), (-0.2, 0.3, 18.69), (-0.1, -0.1, -12.57),
                         (0.2, -0.3, 18.69), (0.1, 0.3, -35.72)]:
         phi = steady_trailer_angle(v, w)
@@ -120,72 +172,113 @@ def run_tests():
             steady_trailer_angle(0.1, 1.0) is None)
     L, a = 0.081, 0.14
 
-    print('\nbuild_row: phi*, A, B, K')
-    for v, w, phi_deg, A, B, K in [
-            (-0.20, 0.0, 0.0, 2.4691, -2.7284, -2.2537),
-            (-0.20, 0.3, 18.69, 2.5051, -2.6373, -2.3291),
-            (-0.15, 0.2, 16.67, 1.8732, -2.6558, -1.9290),
-            (-0.10, -0.1, -12.57, 1.2426, -2.6870, -1.5642),
-            (0.10, 0.0, 0.0, -1.2346, -2.7284, -0.6451),
-            (0.20, -0.3, 18.69, -2.5051, -2.6373, -0.4293)]:
-        row = build_row(v, w, 1.0, 1.0)
+    heading('\nlinearize: phi*, A, B')
+    for v, w, phi_deg, A, B in reference_points:
+        result = attempt(linearize, v, w)
         tag = f'v={v:+.2f} w={w:+.2f}'
-        check(tag + ' phi*', None if row is None else math.degrees(row['phi_star']), phi_deg, 0.01)
-        check(tag + ' A', None if row is None else row['A'], A)
-        check(tag + ' B', None if row is None else row['B'], B)
-        check(tag + ' K', None if row is None else row['K'], K)
+        check(tag + ' phi*', field(result, 0, math.degrees), phi_deg, 0.01)
+        check(tag + ' A', field(result, 1), A)
+        check(tag + ' B', field(result, 2), B)
+    result = attempt(linearize, 0.10, 0.30)
+    check_true('linearize does not apply the angle limit ((0.10, 0.30) still gives a result)',
+            todo_if(result, result is not None))
+    L, a = 0.30, 0.10
+    result = attempt(linearize, 0.1, 1.0)
+    check_true('linearize returns None when there is no steady angle',
+            todo_if(result, result is None))
+    L, a = 0.081, 0.14
 
-    print('\nangle limit')
-    check_true('(0.10, 0.30) is refused at 35 deg', build_row(0.10, 0.30, 1.0, 1.0, 35.0) is None)
-    check_true('(0.10, 0.30) is allowed at 40 deg', build_row(0.10, 0.30, 1.0, 1.0, 40.0) is not None)
+    heading('\nscalar_lqr: K')
+    for A, B, q, r, expected in [(2 / 3, -4 / 3, 1.0, 1.0, -1.6180), (-2 / 3, -4 / 3, 1.0, 1.0, -0.6180),
+                                 (2 / 3, -4 / 3, 2.0, 1.0, -2.0), (2 / 3, -4 / 3, 1.0, 2.0, -1.3660)]:
+        check(f'A={A:+.4f} B={B:+.4f} Q={q:g} R={r:g}', attempt(scalar_lqr, A, B, q, r), expected)
 
-    print('\nbuild_table (Q = R = 1)')
-    rows = build_table(1.0, 1.0, (0.10, 0.15, 0.20, -0.10, -0.15, -0.20),
+    heading('\nbuild_row: phi*, A, B, K')
+    for (v, w, phi_deg, A, B), K in zip(reference_points, reference_gains):
+        row = attempt(build_row, v, w, 1.0, 1.0)
+        tag = f'v={v:+.2f} w={w:+.2f}'
+        check(tag + ' phi*', field(row, 'phi_star', math.degrees), phi_deg, 0.01)
+        check(tag + ' A', field(row, 'A'), A)
+        check(tag + ' B', field(row, 'B'), B)
+        check(tag + ' K', field(row, 'K'), K)
+    row = attempt(build_row, -0.20, 0.0, 1.0, 1.0)
+    check_true('the row has the keys v, omega, phi_star, A, B, K',
+            NOT_DONE if row is NOT_DONE else
+            (row is not None and set(row) == {'v', 'omega', 'phi_star', 'A', 'B', 'K'}))
+
+    heading('\nangle limit (build_row)')
+    row = attempt(build_row, 0.10, 0.30, 1.0, 1.0, 35.0)
+    check_true('(0.10, 0.30) is refused at 35 deg', todo_if(row, row is None))
+    row = attempt(build_row, 0.10, 0.30, 1.0, 1.0, 40.0)
+    check_true('(0.10, 0.30) is allowed at 40 deg', todo_if(row, row is not None))
+
+    heading('\nbuild_table (Q = R = 1)')
+    rows = attempt(build_table, 1.0, 1.0, (0.10, 0.15, 0.20, -0.10, -0.15, -0.20),
                 (0.10, 0.20, 0.30, -0.10, -0.20, -0.30, 0.0))
-    check('number of rows', len(rows), 38, 0)
-    for v, n in [(-0.20, 7), (-0.15, 7), (-0.10, 5), (0.10, 5), (0.15, 7), (0.20, 7)]:
-        check(f'rows with v={v:+.2f}', sum(1 for r in rows if r['v'] == v), n, 0)
-    check_true('every row is stable (A - B*K < 0)', all(r['A'] - r['B'] * r['K'] < 0 for r in rows))
-    mirror = True
-    for r in rows:
-        m = find_row(rows, r['v'], -r['omega'])
-        if m is None or abs(m['K'] - r['K']) > 1e-9 or abs(m['phi_star'] + r['phi_star']) > 1e-9:
-            mirror = False
-    check_true('(v, omega) and (v, -omega) have the same K and opposite phi*', mirror)
+    if rows is NOT_DONE:
+        skipped['checks'] += 4          # row count, rows per speed, stability, mirror symmetry
+    elif rows is None:
+        print('FAIL  build_table returned None (is there a return rows at the end?)')
+        failures.append('build_table returned None')
+    else:
+        check('number of rows', len(rows), 38, 0)
+        for v, n in [(-0.20, 7), (-0.15, 7), (-0.10, 5), (0.10, 5), (0.15, 7), (0.20, 7)]:
+            check(f'rows with v={v:+.2f}', sum(1 for r in rows if r['v'] == v), n, 0)
+        check_true('every row is stable (A - B*K < 0)', all(r['A'] - r['B'] * r['K'] < 0 for r in rows))
+        mirror = True
+        for r in rows:
+            m = find_row(rows, r['v'], -r['omega'])
+            if m is None or abs(m['K'] - r['K']) > 1e-9 or abs(m['phi_star'] + r['phi_star']) > 1e-9:
+                mirror = False
+        check_true('(v, omega) and (v, -omega) have the same K and opposite phi*', mirror)
 
-    print('\nfind_row')
+    heading('\nfind_row (on a small table written by hand)')
+    sample = [{'v': 0.15, 'omega': 0.20}, {'v': -0.20, 'omega': 0.0}]
     check_true('float noise still finds the row (0.15000000000000002, 0.1 + 0.1)',
-            find_row(rows, 0.15000000000000002, 0.1 + 0.1) is not None)
-    check_true('a refused arc is not found', find_row(rows, 0.10, 0.30) is None)
-    check_true('stopped is not found', find_row(rows, 0.0, 0.0) is None)
-    check_true('an off-grid speed is not found', find_row(rows, 0.12, 0.0) is None)
+            find_row(sample, 0.15000000000000002, 0.1 + 0.1) is sample[0])
+    check_true('a refused arc is not found', find_row(sample, 0.10, 0.30) is None)
+    check_true('stopped is not found', find_row(sample, 0.0, 0.0) is None)
+    check_true('an off-grid speed is not found', find_row(sample, 0.12, 0.0) is None)
 
-    print('\nscheduled_omega (omega_out = omega_cmd - K * (phi - phi*))')
-    for v, w, phi, expected in [(-0.2, 0.0, 0.10, 0.2254), (-0.2, 0.3, 0.40, 0.4719),
-                                (-0.1, -0.1, -0.30, -0.2261), (0.2, 0.0, 0.10, 0.0444),
-                                (0.2, -0.3, 0.0, -0.4400)]:
-        row = find_row(rows, v, w)
+    heading('\nscheduled_omega (omega_out = omega_cmd - K * (phi - phi*), on rows written by hand)')
+    by_hand = {
+        (-0.2, 0.0): {'phi_star': 0.0, 'K': -2.2537},
+        (-0.2, 0.3): {'phi_star': 0.3262, 'K': -2.3291},
+        (-0.1, -0.1): {'phi_star': -0.2194, 'K': -1.5642},
+        (0.2, 0.0): {'phi_star': 0.0, 'K': -0.4437},
+        (0.2, -0.3): {'phi_star': 0.3262, 'K': -0.4293}}
+    for (v, w), phi, expected in [((-0.2, 0.0), 0.10, 0.2254), ((-0.2, 0.3), 0.40, 0.4719),
+                                  ((-0.1, -0.1), -0.30, -0.2261), ((0.2, 0.0), 0.10, 0.0444),
+                                  ((0.2, -0.3), 0.0, -0.4400)]:
         check(f'v={v:+.2f} w={w:+.2f} phi={phi:+.2f}',
-            None if row is None else scheduled_omega(row, w, phi, 1.5), expected)
-    row = find_row(rows, -0.2, 0.0)
+            scheduled_omega(by_hand[(v, w)], w, phi, 1.5), expected)
     check('clamped to the limit (phi = 1.0 would give 2.25)',
-        None if row is None else scheduled_omega(row, 0.0, 1.0, 1.5), 1.5)
+        scheduled_omega(by_hand[(-0.2, 0.0)], 0.0, 1.0, 1.5), 1.5)
 
-    print('\nthe settings at the top of this file')
+    heading('\nthe settings at the top of this file')
     L, a = settings_L, settings_a
-    live = build_table(Q, R,
-                    SPEED_LEVELS, TURN_LEVELS, MAX_STEADY_ANGLE_DEG)
-    check_true('the table is not empty', len(live) > 0)
-    check_true('every row is stable (A - B*K < 0)', all(r['A'] - r['B'] * r['K'] < 0 for r in live))
-    check_true('closed loop A - B*K = -sqrt(A^2 + B^2*Q/R) in every row',
-            all(abs((r['A'] - r['B'] * r['K']) + sqrt(r['A'] ** 2 + r['B'] ** 2 * Q / R)) < 1e-9
-                for r in live))
-    row = find_row(live, -max(SPEED_LEVELS), 0.0)
-    print(f'info  {len(live)} rows with Q={Q:g}, R={R:g}; 'f'K(v={-max(SPEED_LEVELS):+.2f}, w=0) = {row["K"]:.4f}' if row else f'info  {len(live)} rows')
+    live = attempt(build_table, Q, R, SPEED_LEVELS, TURN_LEVELS, MAX_STEADY_ANGLE_DEG)
+    if live is NOT_DONE:
+        skipped['checks'] += 3          # not empty, every row stable, closed loop
+    elif live is None:
+        print('FAIL  build_table returned None (is there a return rows at the end?)')
+        failures.append('build_table returned None')
+    else:
+        check_true('the table is not empty', len(live) > 0)
+        check_true('every row is stable (A - B*K < 0)', all(r['A'] - r['B'] * r['K'] < 0 for r in live))
+        check_true('closed loop A - B*K = -sqrt(A^2 + B^2*Q/R) in every row',
+                all(abs((r['A'] - r['B'] * r['K']) + sqrt(r['A'] ** 2 + r['B'] ** 2 * Q / R)) < 1e-9
+                    for r in live))
+        row = find_row(live, -max(SPEED_LEVELS), 0.0)
+        print(f'info  {len(live)} rows with Q={Q:g}, R={R:g}; 'f'K(v={-max(SPEED_LEVELS):+.2f}, w=0) = {row["K"]:.4f}' if row else f'info  {len(live)} rows')
 
+    end_section()
     print()
     if failures:
         print(f'{len(failures)} FAILED: ' + ', '.join(failures))
+    if waiting:
+        print('Still to write (shown as TODO above): ' + ', '.join(waiting))
+    if failures or waiting:
         return 1
     print('all checks passed')
     return 0
@@ -202,6 +295,8 @@ def main(args=None):
 
     # Built once here; takes well under a millisecond.
     rows = build_table(Q, R, SPEED_LEVELS, TURN_LEVELS, MAX_STEADY_ANGLE_DEG)
+    if not rows:
+        raise RuntimeError('build_table gave no rows (does it end with `return rows`?)')
 
     # What the callbacks share.
     state = {
