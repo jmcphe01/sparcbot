@@ -1,111 +1,88 @@
-#include <fcntl.h>
-#include <linux/i2c-dev.h>
-#include <sys/ioctl.h>
-#include <unistd.h>
+// AS5600 bench test: prints the raw sensor angle, the calibrated angle and the magnet status.
 
-#include <cstdint>
-#include <iostream>
-#include <iomanip>
-#include <stdexcept>
-#include <thread>
+
 #include <chrono>
+#include <csignal>
+#include <cstdio>
+#include <cstdlib>
+#include <exception>
+#include <numbers>
+#include <string>
+#include <thread>
 
-constexpr const char* I2C_DEVICE = "/dev/i2c-1";
-constexpr uint8_t AS5600_ADDR = 0x36;
+#include "sparcbot/hardware/as5600.hpp"
 
-constexpr uint8_t RAW_ANGLE_HIGH = 0x0C;
-constexpr uint8_t RAW_ANGLE_LOW  = 0x0D;
+namespace {
 
+volatile std::sig_atomic_t g_stop = 0;
 
-uint8_t readRegister(int fd, uint8_t reg)
+void onSignal(int)
 {
-    // Tell AS5600 which register we want
-    if (write(fd, &reg, 1) != 1)
-    {
-        throw std::runtime_error("Failed to write register address");
-    }
-
-    uint8_t value;
-
-    // Read one byte from that register
-    if (read(fd, &value, 1) != 1)
-    {
-        throw std::runtime_error("Failed to read register");
-    }
-
-    return value;
+    g_stop = 1;
 }
 
-
-uint16_t readRawAngle(int fd)
+const char* magnetText(const As5600Status& status)
 {
-    uint8_t high = readRegister(fd, RAW_ANGLE_HIGH);
-    uint8_t low  = readRegister(fd, RAW_ANGLE_LOW);
-
-    // AS5600 angle is only 12 bits.
-    //
-    // high byte:
-    // xxxx HHHH
-    //
-    // low byte:
-    // LLLLLLLL
-    //
-    // Combined:
-    //
-    // HHHH LLLLLLLL
-    //
-    // = 12 bits
-
-    uint16_t raw =
-        (static_cast<uint16_t>(high & 0x0F) << 8)
-        | low;
-
-    return raw;
+    if (!status.magnet_detected) return "NOT DETECTED";
+    if (status.magnet_too_weak) return "TOO WEAK (move the magnet closer)";
+    if (status.magnet_too_strong) return "TOO STRONG (move the magnet away)";
+    return "OK";
 }
 
-
-int main()
+double toDegrees(double radians)
 {
-    int fd = open(I2C_DEVICE, O_RDWR);
+    return radians * 180.0 / std::numbers::pi;
+}
 
-    if (fd < 0)
-    {
-        std::cerr << "Could not open " << I2C_DEVICE << "\n";
-        return 1;
+} // namespace
+
+int main(int argc, char** argv)
+{
+    As5600Config config;
+
+    try {
+        if (argc > 1) config.zero_offset_rad = std::stod(argv[1]) * std::numbers::pi / 180.0;
+        if (argc > 2) config.direction_sign = std::stoi(argv[2]);
+        if (argc > 3) config.i2c_device = argv[3];
+    }
+    catch (const std::exception&) {
+        std::fprintf(stderr, "usage: %s [zero_offset_deg [direction_sign [i2c_device]]]\n", argv[0]);
+        return 2;
     }
 
-    // Select AS5600 as the device we want to communicate with
-    if (ioctl(fd, I2C_SLAVE, AS5600_ADDR) < 0)
-    {
-        std::cerr << "Could not select AS5600 at address 0x36\n";
-        close(fd);
-        return 1;
-    }
+    std::signal(SIGINT, onSignal);
+    std::signal(SIGTERM, onSignal);
 
-    std::cout << "Reading AS5600 raw angle...\n";
+    try {
+        As5600 sensor(config);
 
-    try
-    {
-        while (true)
-        {
-            uint16_t raw = readRawAngle(fd);
+        std::printf("AS5600 on %s, address 0x%02X, zero offset %.2f deg, direction %+d\n",
+                    config.i2c_device.c_str(), config.i2c_address,
+                    toDegrees(config.zero_offset_rad), config.direction_sign);
+        std::printf("Ctrl-C to quit.\n");
 
-            std::cout
-                << "Raw angle: "
-                << std::setw(4)
-                << raw
-                << "\n";
+        while (!g_stop) {
+            try {
+                const uint16_t raw = sensor.readRawAngle();
+                const double sensor_deg = raw * 360.0 / As5600::COUNTS_PER_REV;
+                const double angle_deg = toDegrees(As5600::rawToAngleRad(raw, config));
+                const As5600Status status = sensor.readStatus();
 
-            std::this_thread::sleep_for(
-                std::chrono::milliseconds(50));
+                std::printf("raw=%4u  sensor_deg=%7.2f  angle_deg=%+7.2f  magnet: %s\n",
+                            raw, sensor_deg, angle_deg, magnetText(status));
+            }
+            catch (const std::exception& e) {
+                // A single failed transfer is not fatal on the bench; keep going.
+                std::fprintf(stderr, "%s\n", e.what());
+            }
+
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
         }
     }
-    catch (const std::exception& e)
-    {
-        std::cerr << "I2C error: " << e.what() << "\n";
+    catch (const std::exception& e) {
+        std::fprintf(stderr, "%s\n", e.what());
+        return 1;
     }
-
-    close(fd);
 
     return 0;
 }

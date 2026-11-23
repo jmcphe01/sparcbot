@@ -2,6 +2,10 @@
 
     ros2 launch sparcbot_bringup robot.launch.py
 
+Add the trailer angle sensor (AS5600) with:
+
+    ros2 launch sparcbot_bringup robot.launch.py trailer_sensor:=true
+
 Then drive it from a second terminal:
 
     ros2 run sparcbot_teleop keyboard_teleop
@@ -14,6 +18,7 @@ from pathlib import Path
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
+from launch.conditions import IfCondition
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -29,6 +34,11 @@ def generate_launch_description():
             'params_file',
             default_value=default_params,
             description='SPARCBot parameter file'),
+
+        DeclareLaunchArgument(
+            'trailer_sensor',
+            default_value='true',
+            description='Also start the trailer angle sensor (AS5600)'),
 
         Node(
             package='sparcbot_nodes',
@@ -59,6 +69,15 @@ def generate_launch_description():
             executable='wheel_controller',
             name='wheel_controller',
             parameters=[params_file],
+            output='screen',
+            emulate_tty=True),
+
+        Node(
+            package='sparcbot_nodes',
+            executable='trailer_sensor_node',
+            name='trailer_sensor',
+            parameters=[params_file],
+            condition=IfCondition(LaunchConfiguration('trailer_sensor')),
             output='screen',
             emulate_tty=True),
     ])

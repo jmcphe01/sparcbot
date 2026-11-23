@@ -23,6 +23,8 @@ setup(
             'linear_vel_step_test = sparcbot_control.linear_vel_step_test:main',
             'angular_vel_step_test = sparcbot_control.angular_vel_step_test:main',
             'circle_tracker = sparcbot_control.circle_tracker:main',
+            'trailer_reverse_only_lqr = sparcbot_control.trailer_reverse_only_lqr:main',
+            'trailer_lqr = sparcbot_control.trailer_lqr:main',
         ],
     },
 )

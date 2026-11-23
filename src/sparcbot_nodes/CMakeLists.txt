@@ -44,11 +44,18 @@ target_link_libraries(odometry_node
   sparcbot_core::sparcbot_core
 )
 
-foreach(target sparcbot_driver_node diff_drive_node odometry_node)
+add_executable(trailer_sensor_node src/trailer_sensor_node.cpp)
+target_link_libraries(trailer_sensor_node
+  rclcpp::rclcpp
+  ${sparcbot_interfaces_TARGETS}
+  sparcbot_core::sparcbot_core
+)
+
+foreach(target sparcbot_driver_node diff_drive_node odometry_node trailer_sensor_node)
   target_compile_options(${target} PRIVATE -Wall -Wextra -Wpedantic)
 endforeach()
 
-install(TARGETS sparcbot_driver_node diff_drive_node odometry_node
+install(TARGETS sparcbot_driver_node diff_drive_node odometry_node trailer_sensor_node
   DESTINATION lib/${PROJECT_NAME}
 )
 
