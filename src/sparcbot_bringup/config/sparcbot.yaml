@@ -49,11 +49,22 @@ sparcbot_driver:
       encoder_sign: 1
 
 # -----------------------------------------------------------------------------
-# Robot geometry shared by every node
+# Robot geometry shared by every node (`/**` applies to all nodes).
 # -----------------------------------------------------------------------------
 /**:
   ros__parameters:
     base_width_m: 0.175         # wheel-to-wheel distance (measure on your robot)
+    wheel_radius_m: 0.040       # drive wheel radius
+
+# -----------------------------------------------------------------------------
+# Encoder odometry (/odom and the odom -> base_link transform).
+# Also uses base_width_m and wheel_radius_m from the shared block above.
+# -----------------------------------------------------------------------------
+odometry:
+  ros__parameters:
+    odom_frame_id: odom
+    base_frame_id: base_link
+    publish_tf: true            # set false if another node is doing it
 
 # -----------------------------------------------------------------------------
 # Wheel velocity controller (feedforward + PID), one block per wheel.
@@ -65,14 +76,14 @@ wheel_controller:
     log_file: '/home/todd/sparcbot/logs/ff_sweep.csv'
 
     left:
-      kp: 3.0
-      ki: 5.0
+      kp: 1.0
+      ki: 2.0
       kd: 0.0
       feedforward:
         forward_static: 0.115
-        forward_velocity_gain: 0.9
+        forward_velocity_gain: 0.4
         reverse_static: 0.135
-        reverse_velocity_gain: 0.9
+        reverse_velocity_gain: 0.4
         forward_breakaway: 0.0
         reverse_breakaway: 0.0
         stopped_velocity_threshold: 0.025
@@ -80,14 +91,14 @@ wheel_controller:
         zero_velocity_threshold: 0.0005
 
     right:
-      kp: 3.0
-      ki: 5.0
+      kp: 1.0
+      ki: 2.0
       kd: 0.0
       feedforward:
         forward_static: 0.138
-        forward_velocity_gain: 0.9
+        forward_velocity_gain: 0.4
         reverse_static: 0.137
-        reverse_velocity_gain: 0.9
+        reverse_velocity_gain: 0.4
         forward_breakaway: 0.0
         reverse_breakaway: 0.0
         stopped_velocity_threshold: 0.025
